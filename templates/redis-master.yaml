@@ -1,0 +1,56 @@
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  labels:
+    name: {{ template "fullname" . }}-master
+    redis-sentinel: "true"
+    redis-node: "true"
+    role: master
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+  name: redis-master
+spec:
+  serviceName: "redis"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: redis
+        redis-sentinel: "true"
+        redis-node: "true"
+        role: master
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+        release: "{{ .Release.Name }}"
+        heritage: "{{ .Release.Service }}"
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: master
+          image: {{ .Values.redis_image }}
+          env:
+            - name: MASTER
+              value: "true"
+          ports:
+            - containerPort: 6379
+          resources:
+            limits:
+              cpu: "0.1"
+          volumeMounts:
+            - mountPath: /redis-master-data
+              name: data
+        - name: sentinel
+          image: kubernetes/redis:v1
+          env:
+            - name: SENTINEL
+              value: "true"
+          ports:
+            - containerPort: 26379
+      volumes:
+      - name: data
+      {{- if .Values.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: redis-pvc
+      {{- else }}
+        emptyDir: {}
+      {{- end -}}
